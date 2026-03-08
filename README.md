@@ -78,9 +78,11 @@ cool special glyph labels: `SPACE`, `QUOTE`, `APOSTROPHE`
 
 # installing with homebrew (macos aarch64/x86_64)
 
-first of all, tap the goddamn repo: `brew tap nurislamaibekuly/nil https://github.com/nurislamaibekuly/nil`
+first of all, you have to fetch my repo in the command prompt:
+`brew tap nurislamaibekuly/nil`
+and after that, install nil:
 
-and after that, install nil:`brew install nil`
+`brew install 
 
 # server docs
 

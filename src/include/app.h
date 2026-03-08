@@ -34,3 +34,4 @@ int app_get_now_playing(TrackInfo* track);
 int app_get_now_playing_position(double* seconds, int* is_playing);
 int app_find_offline_ttml(const char* db_path, const TrackInfo* track, char* out_path, size_t out_len);
 int app_fetch_online_ttml(const AppConfig* config, const TrackInfo* track, char* out_path, size_t out_len);
+int app_get_ttml(const AppConfig* config, const TrackInfo* track, char* out_path, size_t out_len);

@@ -70,9 +70,7 @@ int main(int argc, char** argv) {
         }
         use_live_timeline = 1;
 
-        if (app_find_offline_ttml("~/.config/nil/ttml.json", &track, input_path_buf, sizeof(input_path_buf))) {
-            input_path = input_path_buf;
-        } else if (app_fetch_online_ttml(&config, &track, input_path_buf, sizeof(input_path_buf))) {
+        if (app_get_ttml(&config, &track, input_path_buf, sizeof(input_path_buf))) {
             input_path = input_path_buf;
         } else {
             fprintf(stderr, "no ttml found for %s - %s\n", track.song, track.artist);

@@ -168,7 +168,10 @@ int app_load_config(AppConfig* config, const char* path) {
     if (!app_expand_path(path, resolved, sizeof(resolved))) return 0;
 
     char* text = NULL;
-    if (!read_file(resolved, &text)) return 0;
+    if (!read_file(resolved, &text)) {
+        snprintf(config->fetch_url_template, sizeof(config->fetch_url_template), "%s", "https://nurislamaibekuly.github.io/nil/ttml.json");
+        return 0;
+    }
 
     json_get_int(text, "scale", &config->scale);
     json_get_int(text, "padding_top", &config->padding_top);
@@ -192,9 +195,6 @@ int app_load_config(AppConfig* config, const char* path) {
     if (config->main_row_percent < 0) config->main_row_percent = 0;
     if (config->main_row_percent > 100) config->main_row_percent = 100;
     if (config->bg_row_from_bottom < 1) config->bg_row_from_bottom = 1;
-    if (config->fetch_url_template[0] == '\0') {
-        snprintf(config->fetch_url_template, sizeof(config->fetch_url_template), "%s", "http://localhost:6941");
-    }
     free(text);
     return 1;
 }
@@ -373,6 +373,19 @@ static void normalize_ascii(const char* in, char* out, size_t out_len) {
     out[j] = '\0';
 }
 
+int app_get_ttml(const AppConfig* config, const TrackInfo* track, char* out_path, size_t out_len) {
+    if (app_find_offline_ttml("~/.config/nil/ttml.json", track, out_path, out_len)) {
+        return 1;
+    }
+
+    if (app_fetch_online_ttml(config, track, out_path, out_len)) {
+        return 1;
+    }
+
+    out_path[0] = '\0';
+    return 0;
+}
+
 int app_find_offline_ttml(const char* db_path, const TrackInfo* track, char* out_path, size_t out_len) {
     char resolved[1024];
     if (!app_expand_path(db_path, resolved, sizeof(resolved))) return 0;
@@ -468,37 +481,93 @@ static int render_template_url(const char* tpl, const TrackInfo* track, char* ou
 }
 
 int app_fetch_online_ttml(const AppConfig* config, const TrackInfo* track, char* out_path, size_t out_len) {
+     printf("asd");
     if (config->fetch_url_template[0] == '\0') return 0;
+    printf("asd");
 
     char url[2048];
     if (!render_template_url(config->fetch_url_template, track, url, sizeof(url))) return 0;
 
-    char tmp_template[] = "/tmp/nil_ttml_XXXXXX";
-    int fd = mkstemp(tmp_template);
-    if (fd < 0) return 0;
-    close(fd);
+    char tmp_json[] = "/tmp/nil_ttml_json_XXXXXX";
+    int fd_json = mkstemp(tmp_json);
+    if (fd_json < 0) return 0;
+    close(fd_json);
 
     char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "curl -fsSL --max-time 12 \"%s\" -o \"%s\"", url, tmp_template);
+    snprintf(cmd, sizeof(cmd), "curl -fsSL --max-time 12 \"%s\" -o \"%s\"", url, tmp_json);
     int rc = system(cmd);
     if (rc != 0) {
-        unlink(tmp_template);
+        unlink(tmp_json);
         return 0;
     }
 
-    FILE* f = fopen(tmp_template, "rb");
-    if (!f) {
-        unlink(tmp_template);
-        return 0;
-    }
-    char probe[32] = {0};
-    size_t n = fread(probe, 1, sizeof(probe) - 1, f);
-    fclose(f);
-    probe[n] = '\0';
-    if (strstr(probe, "<tt") == NULL && strstr(probe, "<?xml") == NULL) {
-        unlink(tmp_template);
+    char* text = NULL;
+    if (!read_file(tmp_json, &text)) {
+        unlink(tmp_json);
         return 0;
     }
 
-    return snprintf(out_path, out_len, "%s", tmp_template) < (int)out_len;
+    char target_song[256], target_artist[256];
+    normalize_ascii(track->song, target_song, sizeof(target_song));
+    normalize_ascii(track->artist, target_artist, sizeof(target_artist));
+
+    char ttml_path[1024] = {0};
+    int found = 0;
+    const char* p = text;
+    while ((p = strchr(p, '{')) != NULL) {
+        const char* q = strchr(p, '}');
+        if (!q) break;
+        size_t obj_len = (size_t)(q - p + 1);
+        char* obj = malloc(obj_len + 1);
+        if (!obj) break;
+        memcpy(obj, p, obj_len);
+        obj[obj_len] = '\0';
+
+        char songname[256] = {0};
+        char artist[256] = {0};
+        char path[1024] = {0};
+        json_get_string(obj, "songname", songname, sizeof(songname));
+        json_get_string(obj, "artist", artist, sizeof(artist));
+        json_get_string(obj, "path", path, sizeof(path));
+
+        char n_song[256], n_artist[256];
+        normalize_ascii(songname, n_song, sizeof(n_song));
+        normalize_ascii(artist, n_artist, sizeof(n_artist));
+
+        if (path[0] != '\0' && strcmp(n_song, target_song) == 0 &&
+            (target_artist[0] == '\0' || n_artist[0] == '\0' || strcmp(n_artist, target_artist) == 0)) {
+            if (strncmp(path, "http://", 7) == 0 || strncmp(path, "https://", 8) == 0) {
+                char tmp_ttml[] = "/tmp/nil_ttml_XXXXXX";
+                int fd_ttml = mkstemp(tmp_ttml);
+                if (fd_ttml >= 0) {
+                    close(fd_ttml);
+                    char curl_cmd[4096];
+                    snprintf(curl_cmd, sizeof(curl_cmd), "curl -fsSL --max-time 12 \"%s\" -o \"%s\"", path, tmp_ttml);
+                    int rc2 = system(curl_cmd);
+                    if (rc2 == 0) {
+                        snprintf(out_path, out_len, "%s", tmp_ttml);
+                        found = 1;
+                    } else {
+                        unlink(tmp_ttml);
+                    }
+                }
+            } else {
+                found = app_expand_path(path, out_path, out_len);
+            }
+            free(obj);
+            break;
+        }
+        free(obj);
+        p = q + 1;
+    }
+
+    free(text);
+
+    unlink(tmp_json);
+
+    if (!found)
+        return 0;
+    if (strncmp(out_path, "/tmp/nil_ttml_", 14) == 0)
+        return 1;
+    return access(out_path, R_OK) == 0;
 }
