@@ -4,10 +4,10 @@ class Nil < Formula
   
   if Hardware::CPU.intel?
     url "https://github.com/nurislamaibekuly/nil/releases/download/stable/nil-macos-x86_64"
-    sha256 "b15f366c2eeb48e34e282a8cd7772896ee238ee8b21cf60a7e6e6d950ad02e77"
+    sha256 "e475d9d3def5e2bc8397620fa9b5708456661e26c8924148daaf0163dd948b40"
   else
     url "https://github.com/nurislamaibekuly/nil/releases/download/stable/nil-macos-aarch64"
-    sha256 "06b24adab3bfe43480bd3e2ed85e32c4c3bc3d985380ea6f49bb04a6d5797b2f"
+    sha256 "f879763a47b7dce58bb0a0fde54f86e5f6333b2546c66ae1c0efb0ae758c95e9"
   end
 
   def install
