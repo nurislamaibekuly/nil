@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <pre id="lyrics"></pre>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const title = urlParams.get('title') || "";
+    const artist = urlParams.get('artist') || "";
+
+    fetch('ttml.json')
+      .then(res => res.json())
+      .then(entries => {
+        const entry = entries.find(e => 
+          e.name.toLowerCase() === title.toLowerCase() &&
+          e.artist.toLowerCase() === artist.toLowerCase()
+        );
+
+        if (!entry) {
+          document.getElementById('lyrics').textContent = "mo lyrics found";
+          return;
+        }
+
+        fetch(entry.path)
+          .then(r => r.text())
+          .then(ttml => {
+            document.getElementById('lyrics').textContent = ttml;
+          })
+          .catch(err => {
+            console.error(err);
+          });
+      })
+      .catch(err => {
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
