@@ -343,7 +343,7 @@ static void render_ascii_text_at(const char* text, int top_row, int left_col, co
     }
 }
 
-static void render_utf8_scaled_at(const char* text, int row, int col, const char* color) {
+static void render_utf8_scaled_at(const char* text, int row, int col, const char* color, int letter_spacing) {
     for (int v = 0; v < g_config.scale; v++) {
         printf("\033[%d;%dH%s", row + v, col, color);
         int text_len = 0;
@@ -354,7 +354,9 @@ static void render_utf8_scaled_at(const char* text, int row, int col, const char
             for (int h = 0; h < g_config.scale; h++) {
                 fwrite(&text[i], 1, (size_t)cp_len, stdout);
             }
-            putchar(' ');
+            if (letter_spacing > 0) {
+                for (int s = 0; s < letter_spacing; s++) putchar(' ');
+            }
             i += cp_len;
         }
         fputs("\033[0m", stdout);
@@ -391,18 +393,18 @@ void render_frame(const Word* main_word, const Word* bg_word) {
             int col = (cols - width) / 2 + 1;
             if (row < 1) row = 1;
             if (col < 1) col = 1;
-            render_utf8_scaled_at(main_word->text, row, col, main_color_esc);
+            render_utf8_scaled_at(main_word->text, row, col, main_color_esc, 1);
         }
     }
 
     if (g_config.show_background && bg_word && bg_word->text) {
         g_config.scale = g_config.bg_scale;
-        int width = count_codepoints(bg_word->text) * (g_config.scale + 1);
+        int width = count_codepoints(bg_word->text) * g_config.scale;
         int row = rows - g_config.bg_row_from_bottom;
         int col = (cols - width) / 2 + 1;
         if (row < 1) row = 1;
         if (col < 1) col = 1;
-        render_utf8_scaled_at(bg_word->text, row, col, bg_color_esc);
+        render_utf8_scaled_at(bg_word->text, row, col, bg_color_esc, 0);
     }
     g_config.scale = saved_scale;
     fflush(stdout);
