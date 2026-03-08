@@ -12,15 +12,20 @@
     const artist = urlParams.get('artist') || "";
 
     fetch('ttml.json')
-      .then(res => res.json())
+      .then(res => {
+        console.log(res);
+        return res.json();
+      })
       .then(entries => {
+        console.log(entries);
+
         const entry = entries.find(e => 
-          e.name.toLowerCase() === title.toLowerCase() &&
+          e.songname.toLowerCase() === title.toLowerCase() &&
           e.artist.toLowerCase() === artist.toLowerCase()
         );
 
         if (!entry) {
-          document.getElementById('lyrics').textContent = "mo lyrics found";
+          document.getElementById('lyrics').textContent = "no lyrics found";
           return;
         }
 
