@@ -2,8 +2,12 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <sys/ioctl.h>
 #include <unistd.h>
+#endif
 #include <ttml.h>
 #include <renderer.h>
 
@@ -257,12 +261,25 @@ static int is_ascii_only(const char* s) {
 }
 
 static void get_terminal_size(int* cols, int* rows) {
+#if defined(_WIN32)
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+        int width = (int)(csbi.srWindow.Right - csbi.srWindow.Left + 1);
+        int height = (int)(csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
+        if (width > 0 && height > 0) {
+            *cols = width;
+            *rows = height;
+            return;
+        }
+    }
+#else
     struct winsize ws;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0 && ws.ws_row > 0) {
         *cols = ws.ws_col;
         *rows = ws.ws_row;
         return;
     }
+#endif
     *cols = 80;
     *rows = 24;
 }

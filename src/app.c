@@ -98,10 +98,45 @@ static int json_get_bool(const char* text, const char* key, int* out) {
     return 0;
 }
 
+static const char* get_home_dir(char* fallback_buf, size_t fallback_len) {
+    const char* home = getenv("HOME");
+    if (home && home[0] != '\0') return home;
+#if !defined(_WIN32)
+    (void)fallback_buf;
+    (void)fallback_len;
+#endif
+#if defined(_WIN32)
+    home = getenv("USERPROFILE");
+    if (home && home[0] != '\0') return home;
+
+    const char* home_drive = getenv("HOMEDRIVE");
+    const char* home_path = getenv("HOMEPATH");
+    if (home_drive && home_drive[0] != '\0' && home_path && home_path[0] != '\0') {
+        if (snprintf(fallback_buf, fallback_len, "%s%s", home_drive, home_path) < (int)fallback_len) {
+            return fallback_buf;
+        }
+    }
+#endif
+    return NULL;
+}
+
 int app_expand_path(const char* input, char* out, size_t out_len) {
     if (!input || !out || out_len == 0) return 0;
-    if (input[0] == '~' && input[1] == '/') {
-        const char* home = getenv("HOME");
+
+#if defined(_WIN32)
+    if ((strncmp(input, "~/.config/nil", 13) == 0 || strncmp(input, "~\\.config\\nil", 13) == 0)) {
+        const char* appdata = getenv("APPDATA");
+        if (appdata && appdata[0] != '\0') {
+            const char* suffix = input + 13;
+            if (suffix[0] == '/' || suffix[0] == '\\') suffix++;
+            return snprintf(out, out_len, "%s/nil/%s", appdata, suffix) < (int)out_len;
+        }
+    }
+#endif
+
+    if (input[0] == '~' && (input[1] == '/' || input[1] == '\\')) {
+        char home_buf[1024];
+        const char* home = get_home_dir(home_buf, sizeof(home_buf));
         if (!home) return 0;
         return snprintf(out, out_len, "%s/%s", home, input + 2) < (int)out_len;
     }
